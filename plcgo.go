@@ -1,9 +1,6 @@
 // Package plcgo provides a modern software PLC implementation in Go.
 // It supports multiple industrial protocols including Modbus TCP/IP, OPC UA,
-// MQTT with Sparkplug B, Redis, and REST APIs.
-//
-// PLCGo is inspired by and compatible with the  PLC architecture,
-// providing a Go-native implementation with GraphQL API support.
+// MQTT with Sparkplug B, Redis, and REST APIs, with GraphQL API support.
 package plcgo
 
 import (

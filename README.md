@@ -87,33 +87,24 @@ func main() {
 
 ## Architecture
 
-PLCGo follows a modular architecture inspired by [](https://github.com/joyautomation/):
+PLCGo follows a modular architecture:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         PLCGo                                │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│  │   Modbus    │  │   OPC UA    │  │    MQTT     │          │
-│  │   Client    │  │   Client    │  │   Client    │          │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │
-│         │                │                │                  │
-│  ┌──────┴────────────────┴────────────────┴──────┐          │
-│  │              Source Manager                     │          │
-│  └──────────────────────┬─────────────────────────┘          │
-│                         │                                    │
-│  ┌──────────────────────┴─────────────────────────┐          │
-│  │              Variable Store                     │          │
-│  └──────────────────────┬─────────────────────────┘          │
-│                         │                                    │
-│  ┌──────────────────────┴─────────────────────────┐          │
-│  │              Task Scheduler                     │          │
-│  └──────────────────────┬─────────────────────────┘          │
-│                         │                                    │
-│  ┌──────────────────────┴─────────────────────────┐          │
-│  │              GraphQL API                        │          │
-│  └─────────────────────────────────────────────────┘          │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph PLCGo
+        subgraph Clients["Protocol Clients"]
+            Modbus["Modbus Client"]
+            OPCUA["OPC UA Client"]
+            MQTT["MQTT Client"]
+            Redis["Redis Client"]
+            REST["REST Client"]
+        end
+
+        Clients --> SM["Source Manager"]
+        SM --> VS["Variable Store"]
+        VS --> TS["Task Scheduler"]
+        TS --> GQL["GraphQL API"]
+    end
 ```
 
 ## Configuration
@@ -445,23 +436,6 @@ func myTask(ctx plcgo.TaskContext) error {
 }
 ```
 
-## Comparison with 
-
-PLCGo is inspired by [](https://github.com/joyautomation/) and aims to provide similar functionality in Go:
-
-| Feature | PLCGo |  |
-|---------|-------|----------|
-| Language | Go | TypeScript/Deno |
-| Modbus TCP | ✅ | ✅ |
-| Modbus RTU | ✅ (via modbus-go) | ❌ |
-| OPC UA | ✅ | ✅ |
-| MQTT/Sparkplug | ✅ | ✅ |
-| Redis | ✅ | ✅ |
-| REST | ✅ | ✅ |
-| GraphQL API | ✅ | ✅ |
-| Task Scheduling | ✅ | ✅ |
-| Docker Support | ✅ | ✅ |
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -478,7 +452,6 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 ## Acknowledgments
 
-- [](https://github.com/joyautomation/) - Inspiration for architecture and API design
 - [modbus-go](https://github.com/adibhanna/modbus-go) - Modbus protocol implementation
 - [gopcua](https://github.com/gopcua/opcua) - OPC UA client library
 - [paho.mqtt.golang](https://github.com/eclipse/paho.mqtt.golang) - MQTT client library
