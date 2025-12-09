@@ -323,6 +323,30 @@ type TaskRuntime struct {
 	mu             sync.RWMutex
 }
 
+// TaskRuntimeSnapshot holds a point-in-time snapshot of task runtime data.
+type TaskRuntimeSnapshot struct {
+	Config         TaskConfig
+	Metrics        TaskMetrics
+	ExecutionCount int64
+	ErrorCount     int64
+	LastError      *ErrorInfo
+	Running        bool
+}
+
+// Snapshot returns a thread-safe snapshot of the task runtime state.
+func (t *TaskRuntime) Snapshot() TaskRuntimeSnapshot {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return TaskRuntimeSnapshot{
+		Config:         t.Config,
+		Metrics:        t.Metrics,
+		ExecutionCount: t.ExecutionCount,
+		ErrorCount:     t.ErrorCount,
+		LastError:      t.LastError,
+		Running:        t.Running,
+	}
+}
+
 // Config is the main PLC configuration.
 type Config struct {
 	ID          string `json:"id"`

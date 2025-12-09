@@ -272,6 +272,8 @@ type (
 	TaskConfig = plc.TaskConfig
 	// Sources holds all configured data sources.
 	Sources = plc.Sources
+	// SourceConfig is the base configuration for all sources.
+	SourceConfig = plc.SourceConfig
 	// ModbusSourceConfig extends SourceConfig for Modbus sources.
 	ModbusSourceConfig = plc.ModbusSourceConfig
 	// OPCUASourceConfig extends SourceConfig for OPC UA sources.

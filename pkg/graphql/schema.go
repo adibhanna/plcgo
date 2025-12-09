@@ -226,23 +226,22 @@ func (s *Server) buildPLCResponse() map[string]interface{} {
 
 	tasksData := make([]map[string]interface{}, 0, len(tasks))
 	for id, t := range tasks {
-		t.mu.RLock()
+		snap := t.Snapshot()
 		tasksData = append(tasksData, map[string]interface{}{
 			"id":             id,
-			"name":           t.Config.Name,
-			"description":    t.Config.Description,
-			"scanRate":       int64(t.Config.ScanRate.Duration().Milliseconds()),
-			"enabled":        t.Config.Enabled,
-			"running":        t.Running,
-			"executionCount": t.ExecutionCount,
-			"errorCount":     t.ErrorCount,
-			"lastError":      formatError(t.LastError),
+			"name":           snap.Config.Name,
+			"description":    snap.Config.Description,
+			"scanRate":       int64(snap.Config.ScanRate.Duration().Milliseconds()),
+			"enabled":        snap.Config.Enabled,
+			"running":        snap.Running,
+			"executionCount": snap.ExecutionCount,
+			"errorCount":     snap.ErrorCount,
+			"lastError":      formatError(snap.LastError),
 			"metrics": map[string]interface{}{
-				"waitDuration":    t.Metrics.WaitDuration.Milliseconds(),
-				"executeDuration": t.Metrics.ExecuteDuration.Milliseconds(),
+				"waitDuration":    snap.Metrics.WaitDuration.Milliseconds(),
+				"executeDuration": snap.Metrics.ExecuteDuration.Milliseconds(),
 			},
 		})
-		t.mu.RUnlock()
 	}
 
 	return map[string]interface{}{

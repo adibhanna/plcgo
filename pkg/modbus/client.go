@@ -3,6 +3,7 @@ package modbus
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"sync"
@@ -67,22 +68,10 @@ func (c *Client) Connect(ctx context.Context) error {
 	// Create client
 	c.client = modbusgo.NewClient(t)
 	c.client.SetSlaveID(modbusgo.SlaveID(c.config.UnitID))
-	c.client.SetAutoReconnect(true)
 
 	if c.config.Timeout.Duration() > 0 {
 		c.client.SetTimeout(c.config.Timeout.Duration())
 	}
-
-	// Configure encoding based on config
-	byteOrder := modbusgo.BigEndian
-	wordOrder := modbusgo.HighWordFirst
-	if c.config.ReverseBits {
-		byteOrder = modbusgo.LittleEndian
-	}
-	if c.config.ReverseWords {
-		wordOrder = modbusgo.LowWordFirst
-	}
-	c.client.SetEncoding(byteOrder, wordOrder)
 
 	// Connect
 	if err := c.client.Connect(); err != nil {
@@ -190,35 +179,42 @@ func (c *Client) scheduleRetry() {
 // Read reads a value from a Modbus register based on the variable source configuration.
 func (c *Client) Read(source *plc.VariableSource) (interface{}, error) {
 	c.mu.RLock()
-	if !c.IsConnected() {
-		c.mu.RUnlock()
+	client := c.client
+	state := c.state
+	c.mu.RUnlock()
+
+	if state != plc.StateConnected || client == nil || !client.IsConnected() {
 		return nil, fmt.Errorf("modbus client not connected")
 	}
-	client := c.client
-	c.mu.RUnlock()
 
 	address := modbusgo.Address(source.Register)
 
 	switch source.RegisterType {
 	case plc.ModbusCoil:
-		val, err := client.ReadCoil(address)
+		vals, err := client.ReadCoils(address, 1)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		if len(vals) > 0 {
+			return vals[0], nil
+		}
+		return false, nil
 
 	case plc.ModbusDiscreteInput:
-		val, err := client.ReadDiscreteInput(address)
+		vals, err := client.ReadDiscreteInputs(address, 1)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		if len(vals) > 0 {
+			return vals[0], nil
+		}
+		return false, nil
 
 	case plc.ModbusInputRegister:
-		return c.readRegisterValue(client.ReadInputRegister, client.ReadInputUint32, client.ReadInputFloat32, source)
+		return c.readRegisterValue(client, address, source, client.ReadInputRegisters)
 
 	case plc.ModbusHoldingRegister:
-		return c.readRegisterValue(client.ReadHoldingRegister, client.ReadUint32, client.ReadFloat32, source)
+		return c.readRegisterValue(client, address, source, client.ReadHoldingRegisters)
 
 	default:
 		return nil, fmt.Errorf("unsupported register type: %s", source.RegisterType)
@@ -226,82 +222,119 @@ func (c *Client) Read(source *plc.VariableSource) (interface{}, error) {
 }
 
 func (c *Client) readRegisterValue(
-	readReg func(modbusgo.Address) (uint16, error),
-	readUint32 func(modbusgo.Address) (uint32, error),
-	readFloat32 func(modbusgo.Address) (float32, error),
+	client *modbusgo.Client,
+	address modbusgo.Address,
 	source *plc.VariableSource,
+	readRegs func(modbusgo.Address, modbusgo.Quantity) ([]uint16, error),
 ) (interface{}, error) {
-	address := modbusgo.Address(source.Register)
-
 	switch source.Format {
 	case plc.ModbusFormatInt16:
-		val, err := readReg(address)
+		regs, err := readRegs(address, 1)
 		if err != nil {
 			return nil, err
 		}
-		return int16(val), nil
+		if len(regs) > 0 {
+			return int16(regs[0]), nil
+		}
+		return int16(0), nil
 
 	case plc.ModbusFormatUint16:
-		val, err := readReg(address)
+		regs, err := readRegs(address, 1)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		if len(regs) > 0 {
+			return regs[0], nil
+		}
+		return uint16(0), nil
 
 	case plc.ModbusFormatInt32:
-		val, err := readUint32(address)
+		regs, err := readRegs(address, 2)
 		if err != nil {
 			return nil, err
 		}
+		val := c.regsToUint32(regs)
 		return int32(val), nil
 
 	case plc.ModbusFormatUint32:
-		val, err := readUint32(address)
+		regs, err := readRegs(address, 2)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		return c.regsToUint32(regs), nil
 
 	case plc.ModbusFormatFloat32:
-		val, err := readFloat32(address)
+		regs, err := readRegs(address, 2)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		val := c.regsToUint32(regs)
+		return math.Float32frombits(val), nil
 
 	case plc.ModbusFormatFloat64:
-		val, err := c.client.ReadFloat64(address)
+		regs, err := readRegs(address, 4)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		val := c.regsToUint64(regs)
+		return math.Float64frombits(val), nil
 
 	case plc.ModbusFormatBoolean:
-		val, err := readReg(address)
+		regs, err := readRegs(address, 1)
 		if err != nil {
 			return nil, err
 		}
-		return val != 0, nil
+		if len(regs) > 0 {
+			return regs[0] != 0, nil
+		}
+		return false, nil
 
 	default:
 		// Default to uint16
-		val, err := readReg(address)
+		regs, err := readRegs(address, 1)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		if len(regs) > 0 {
+			return regs[0], nil
+		}
+		return uint16(0), nil
 	}
+}
+
+// regsToUint32 converts two uint16 registers to uint32.
+func (c *Client) regsToUint32(regs []uint16) uint32 {
+	if len(regs) < 2 {
+		return 0
+	}
+	// Handle byte/word order based on config
+	if c.config.ReverseWords {
+		return uint32(regs[1])<<16 | uint32(regs[0])
+	}
+	return uint32(regs[0])<<16 | uint32(regs[1])
+}
+
+// regsToUint64 converts four uint16 registers to uint64.
+func (c *Client) regsToUint64(regs []uint16) uint64 {
+	if len(regs) < 4 {
+		return 0
+	}
+	if c.config.ReverseWords {
+		return uint64(regs[3])<<48 | uint64(regs[2])<<32 | uint64(regs[1])<<16 | uint64(regs[0])
+	}
+	return uint64(regs[0])<<48 | uint64(regs[1])<<32 | uint64(regs[2])<<16 | uint64(regs[3])
 }
 
 // Write writes a value to a Modbus register based on the variable source configuration.
 func (c *Client) Write(source *plc.VariableSource, value interface{}) error {
 	c.mu.RLock()
-	if !c.IsConnected() {
-		c.mu.RUnlock()
+	client := c.client
+	state := c.state
+	c.mu.RUnlock()
+
+	if state != plc.StateConnected || client == nil || !client.IsConnected() {
 		return fmt.Errorf("modbus client not connected")
 	}
-	client := c.client
-	c.mu.RUnlock()
 
 	address := modbusgo.Address(source.Register)
 
@@ -345,21 +378,26 @@ func (c *Client) writeRegisterValue(client *modbusgo.Client, source *plc.Variabl
 		if err != nil {
 			return err
 		}
-		return client.WriteUint32(address, val)
+		regs := c.uint32ToRegs(val)
+		return client.WriteMultipleRegisters(address, regs)
 
 	case plc.ModbusFormatFloat32:
 		val, err := toFloat32(value)
 		if err != nil {
 			return err
 		}
-		return client.WriteFloat32(address, val)
+		bits := math.Float32bits(val)
+		regs := c.uint32ToRegs(bits)
+		return client.WriteMultipleRegisters(address, regs)
 
 	case plc.ModbusFormatFloat64:
 		val, err := toFloat64(value)
 		if err != nil {
 			return err
 		}
-		return client.WriteFloat64(address, val)
+		bits := math.Float64bits(val)
+		regs := c.uint64ToRegs(bits)
+		return client.WriteMultipleRegisters(address, regs)
 
 	case plc.ModbusFormatBoolean:
 		boolVal, ok := value.(bool)
@@ -379,6 +417,22 @@ func (c *Client) writeRegisterValue(client *modbusgo.Client, source *plc.Variabl
 		}
 		return client.WriteSingleRegister(address, val)
 	}
+}
+
+// uint32ToRegs converts uint32 to two uint16 registers.
+func (c *Client) uint32ToRegs(val uint32) []uint16 {
+	if c.config.ReverseWords {
+		return []uint16{uint16(val), uint16(val >> 16)}
+	}
+	return []uint16{uint16(val >> 16), uint16(val)}
+}
+
+// uint64ToRegs converts uint64 to four uint16 registers.
+func (c *Client) uint64ToRegs(val uint64) []uint16 {
+	if c.config.ReverseWords {
+		return []uint16{uint16(val), uint16(val >> 16), uint16(val >> 32), uint16(val >> 48)}
+	}
+	return []uint16{uint16(val >> 48), uint16(val >> 32), uint16(val >> 16), uint16(val)}
 }
 
 // Config returns the client configuration.
@@ -479,3 +533,6 @@ func toFloat64(v interface{}) (float64, error) {
 		return 0, fmt.Errorf("cannot convert %T to float64", v)
 	}
 }
+
+// Ensure binary package is used (for potential future use)
+var _ = binary.BigEndian
