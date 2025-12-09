@@ -1,0 +1,52 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+plcgo
+/cmd/plcgo/plcgo
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+
+# Config (keep example)
+config/config.json
+!config/config.example.json
+
+# Logs
+*.log
+logs/
+
+# Docker volumes
+docker/mosquitto/data/
+docker/mosquitto/log/
+
+# Temporary files
+tmp/
+temp/

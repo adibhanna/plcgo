@@ -1,0 +1,165 @@
+{
+  "id": "plc-001",
+  "name": "Example PLC",
+  "description": "Example PLCGo configuration",
+  "redisUrl": "redis://localhost:6379",
+  "sources": {
+    "modbus": {
+      "modbus1": {
+        "id": "modbus1",
+        "type": "modbus",
+        "name": "Main Modbus Server",
+        "description": "Primary Modbus TCP connection",
+        "enabled": true,
+        "retryMinDelay": "1s",
+        "retryMaxDelay": "30s",
+        "host": "localhost",
+        "port": 502,
+        "unitId": 1,
+        "timeout": "3s",
+        "reverseBits": false,
+        "reverseWords": false
+      }
+    },
+    "mqtt": {
+      "mqtt1": {
+        "id": "mqtt1",
+        "type": "mqtt",
+        "name": "Local MQTT Broker",
+        "description": "MQTT connection with Sparkplug B",
+        "enabled": true,
+        "retryMinDelay": "1s",
+        "retryMaxDelay": "30s",
+        "serverUrl": "tcp://localhost:1883",
+        "clientId": "plcgo-001",
+        "cleanSession": true,
+        "groupId": "MyGroup",
+        "edgeNodeId": "MyEdgeNode",
+        "deviceId": "MyDevice"
+      }
+    },
+    "redis": {
+      "redis1": {
+        "id": "redis1",
+        "type": "redis",
+        "name": "State Redis",
+        "description": "Redis for state persistence",
+        "enabled": true,
+        "url": "redis://localhost:6379",
+        "db": 0
+      }
+    },
+    "opcua": {},
+    "rest": {
+      "api1": {
+        "id": "api1",
+        "type": "rest",
+        "name": "External API",
+        "description": "REST API integration",
+        "enabled": false,
+        "baseUrl": "https://api.example.com",
+        "timeout": "10s",
+        "headers": {
+          "Authorization": "Bearer token",
+          "Content-Type": "application/json"
+        }
+      }
+    }
+  },
+  "variables": {
+    "counter": {
+      "id": "counter",
+      "name": "Counter",
+      "description": "A simple counter",
+      "datatype": "number",
+      "default": 0,
+      "decimals": 0
+    },
+    "temperature": {
+      "id": "temperature",
+      "name": "Temperature",
+      "description": "Temperature sensor reading",
+      "datatype": "number",
+      "default": 0,
+      "decimals": 2,
+      "deadband": 0.5,
+      "source": {
+        "sourceId": "modbus1",
+        "type": "modbus",
+        "register": 0,
+        "registerType": "INPUT_REGISTER",
+        "format": "FLOAT32",
+        "rate": "1s"
+      }
+    },
+    "setpoint": {
+      "id": "setpoint",
+      "name": "Setpoint",
+      "description": "Temperature setpoint",
+      "datatype": "number",
+      "default": 25.0,
+      "decimals": 1,
+      "writable": true,
+      "source": {
+        "sourceId": "modbus1",
+        "type": "modbus",
+        "register": 10,
+        "registerType": "HOLDING_REGISTER",
+        "format": "FLOAT32",
+        "rate": "1s",
+        "bidirectional": true
+      }
+    },
+    "running": {
+      "id": "running",
+      "name": "Running",
+      "description": "System running status",
+      "datatype": "boolean",
+      "default": false,
+      "source": {
+        "sourceId": "modbus1",
+        "type": "modbus",
+        "register": 100,
+        "registerType": "COIL",
+        "format": "BOOLEAN",
+        "rate": "500ms"
+      }
+    },
+    "status": {
+      "id": "status",
+      "name": "Status",
+      "description": "System status message",
+      "datatype": "string",
+      "default": "Initializing"
+    }
+  },
+  "tasks": {
+    "main": {
+      "id": "main",
+      "name": "Main Task",
+      "description": "Main control task",
+      "scanRate": "1s",
+      "enabled": true
+    },
+    "fast": {
+      "id": "fast",
+      "name": "Fast Task",
+      "description": "Fast data acquisition task",
+      "scanRate": "100ms",
+      "enabled": true
+    }
+  },
+  "mqtt": {
+    "sparkplug": {
+      "id": "sparkplug",
+      "type": "mqtt",
+      "name": "Sparkplug B Connection",
+      "enabled": true,
+      "serverUrl": "tcp://localhost:1883",
+      "clientId": "plcgo-sparkplug",
+      "groupId": "Industrial",
+      "edgeNodeId": "PLCGo",
+      "deviceId": "Device001"
+    }
+  }
+}

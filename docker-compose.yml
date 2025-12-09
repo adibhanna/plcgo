@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  plcgo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plcgo
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./config:/app/config:ro
+    environment:
+      - TZ=UTC
+      - LOG_LEVEL=info
+    networks:
+      - plcgo-network
+    depends_on:
+      - redis
+      - mosquitto
+
+  # Redis for state persistence and pub/sub
+  redis:
+    image: redis:7-alpine
+    container_name: plcgo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - plcgo-network
+
+  # MQTT Broker (Mosquitto)
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: plcgo-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    networks:
+      - plcgo-network
+
+  # Modbus Simulator (optional, for testing)
+  modbus-simulator:
+    image: oitc/modbus-server:latest
+    container_name: plcgo-modbus-simulator
+    restart: unless-stopped
+    ports:
+      - "502:502"
+    environment:
+      - MODBUS_SERVER_HOST=0.0.0.0
+      - MODBUS_SERVER_PORT=502
+    networks:
+      - plcgo-network
+    profiles:
+      - testing
+
+networks:
+  plcgo-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  mosquitto-data:
+  mosquitto-log:
