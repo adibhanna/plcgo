@@ -1,6 +1,6 @@
 module github.com/adibhanna/plcgo
 
-go 1.23
+go 1.25.5
 
 require (
 	github.com/adibhanna/modbus-go v1.2.0
