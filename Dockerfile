@@ -1,25 +1,4 @@
-# Build stage
-FROM golang:1.23.4-alpine AS builder
-
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates
-
-# Set working directory
-WORKDIR /app
-
-# Copy go mod files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
-COPY . .
-
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /plcgo ./cmd/plcgo
-
-# Runtime stage
+# Runtime stage - GoReleaser provides the pre-built binary
 FROM alpine:3.19
 
 # Install runtime dependencies
@@ -31,11 +10,8 @@ RUN adduser -D -g '' plcgo
 # Set working directory
 WORKDIR /app
 
-# Copy binary from builder
-COPY --from=builder /plcgo /app/plcgo
-
-# Copy config directory
-COPY --from=builder /app/config-examples /app/config-examples
+# Copy pre-built binary from GoReleaser
+COPY plcgo /app/plcgo
 
 # Set ownership
 RUN chown -R plcgo:plcgo /app

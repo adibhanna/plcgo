@@ -60,8 +60,12 @@ dockers:
       - "ghcr.io/adibhanna/plcgo:{{ .Tag }}"
       - "ghcr.io/adibhanna/plcgo:latest"
     dockerfile: Dockerfile
+    goos: linux
+    goarch: amd64
+    use: buildx
     build_flag_templates:
       - "--pull"
+      - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
