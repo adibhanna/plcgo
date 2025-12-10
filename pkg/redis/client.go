@@ -97,10 +97,8 @@ func (c *Client) Connect(ctx context.Context) error {
 		return err
 	}
 
-	// Enable keyspace notifications
-	if err := c.client.ConfigSet(ctx, "notify-keyspace-events", "KEA").Err(); err != nil {
-		// This may fail if the user doesn't have permission, but we continue
-	}
+	// Enable keyspace notifications (may fail if the user doesn't have permission, but we continue)
+	_ = c.client.ConfigSet(ctx, "notify-keyspace-events", "KEA").Err()
 
 	c.state = plc.StateConnected
 	c.error = nil
@@ -126,7 +124,7 @@ func (c *Client) Disconnect() error {
 	close(c.stopCh)
 
 	if c.pubsub != nil {
-		c.pubsub.Close()
+		_ = c.pubsub.Close()
 		c.pubsub = nil
 	}
 

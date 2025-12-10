@@ -66,7 +66,7 @@ func (c *Client) Request(ctx context.Context, method, path string, body []byte, 
 	if err != nil {
 		return nil, 0, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

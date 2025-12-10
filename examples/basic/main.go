@@ -182,7 +182,7 @@ func main() {
 
 		// Increment counter
 		counter++
-		ctx.SetValue("counter", counter)
+		_ = ctx.SetValue("counter", counter)
 
 		// Update status based on counter
 		var status string
@@ -191,7 +191,7 @@ func main() {
 		} else {
 			status = "Running normally"
 		}
-		ctx.SetValue("status", status)
+		_ = ctx.SetValue("status", status)
 
 		return nil
 	})

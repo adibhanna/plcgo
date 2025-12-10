@@ -117,12 +117,12 @@ func (s *Server) publishUpdates() {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 func (s *Server) handlePlayground(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(graphqlPlayground))
+	_, _ = w.Write([]byte(graphqlPlayground))
 }
 
 func (s *Server) handleGraphQL(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +148,7 @@ func (s *Server) handleGraphQL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := s.executeQuery(r.Context(), request.Query, request.Variables)
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *Server) executeQuery(ctx context.Context, query string, variables map[string]interface{}) map[string]interface{} {
